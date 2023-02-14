@@ -21,7 +21,7 @@ def get_recursive_subdomains(domain, level, wordlists):
     recursive_subdomains = set()
     for subdomain in subdomains:
         try:
-            answers = dns.resolver.query(subdomain, 'A')
+            answers = dns.resolver.resolve(subdomain, 'A')
             for answer in answers:
                 recursive_subdomains.add(subdomain)
                 recursive_subdomains.update(get_recursive_subdomains(answer.address, level-1, wordlists))
