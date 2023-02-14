@@ -2,76 +2,55 @@
 
 import argparse
 import dns.resolver
-import os
+import socket
 import sys
-import concurrent.futures
-from termcolor import colored
 
-BANNER = colored("""
- __      __    _      _______          _       
- \ \    / /   | |    |__   __|        | |      
-  \ \  / /   _| |_ ___  | | ___   ___ | |_ ___ 
-   \ \/ / | | | __/ _ \ | |/ _ \ / _ \| __/ __|
-    \  /| |_| | ||  __/ | | (_) | (_) | |_\__ \\
-     \/  \__,_|\__\___| |_|\___/ \___/ \__|___/
-""", 'cyan')
 
 def get_subdomains(domain, wordlists):
-    subdomains = set()
     for wordlist in wordlists:
         with open(wordlist, 'r') as f:
             for line in f:
                 subdomain = line.strip()
-                if subdomain:
-                    hostname = f"{subdomain}.{domain}"
-                    subdomains.add(hostname)
-    return subdomains
+                if subdomain == "":
+                    continue
+                yield f"{subdomain}.{domain}"
+
 
 def get_recursive_subdomains(domain, recursive, wordlists):
     subdomains = set()
-    if not recursive:
-        subdomains.update(get_subdomains(domain, wordlists))
-    else:
-        subdomains_to_check = {domain}
-        discovered_subdomains = set()
-        while subdomains_to_check:
-            subdomain = subdomains_to_check.pop()
-            if subdomain not in discovered_subdomains:
-                discovered_subdomains.add(subdomain)
-                try:
-                    answers = dns.resolver.resolve(subdomain, 'A')
-                    for rdata in answers:
-                        subdomains.add(subdomain)
-                        print(colored(f"[+] Discovered subdomain: {subdomain}", 'green'))
-                except:
-                    pass
-                subdomains_to_check.update(get_subdomains(subdomain, wordlists))
+    processed_subdomains = set()
+    subdomains.update(get_subdomains(domain, wordlists))
+    processed_subdomains.add(domain)
+    while recursive and len(subdomains) > 0:
+        subdomain = subdomains.pop()
+        if subdomain in processed_subdomains:
+            continue
+        processed_subdomains.add(subdomain)
+        try:
+            answers = dns.resolver.query(subdomain, 'A')
+            for rdata in answers:
+                ip = rdata.address
+                subdomains.add((subdomain, ip))
+        except:
+            pass
     return subdomains
 
+
 def main():
-    parser = argparse.ArgumentParser(description=BANNER)
-    parser.add_argument('domain', help='The domain to enumerate subdomains for')
-    parser.add_argument('-r', '--recursive', action='store_true', help='Recursively search for subdomains')
-    parser.add_argument('-w', '--wordlists', default='common.txt', help='Comma-separated list of wordlists to use')
-    parser.add_argument('-o', '--output', default='subdomains.txt', help='File to write output to')
-    parser.add_argument('-t', '--threads', default=10, type=int, help='Number of threads to use for subdomain lookup')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Show verbose output')
+    parser = argparse.ArgumentParser(description="WhiteF0x - Sub Domain Enumeration Tool")
+    parser.add_argument("domain", help="The domain to enumerate subdomains for")
+    parser.add_argument("-r", "--recursive", help="Enable recursive subdomain enumeration", action="store_true")
+    parser.add_argument("-w", "--wordlists", help="Comma-separated list of wordlists to use", default="wordlists/common.txt")
+    parser.add_argument("-v", "--verbose", help="Enable verbose output", action="store_true")
     args = parser.parse_args()
 
-    if args.verbose:
-        print(colored(f"[i] Starting WhiteF0x with options: {args}", 'yellow'))
-
-    wordlists = args.wordlists.split(',')
+    wordlists = args.wordlists.split(",")
     subdomains = get_recursive_subdomains(args.domain, args.recursive, wordlists)
-
-    with open(args.output, 'w') as f:
-        for subdomain in subdomains:
-            f.write(subdomain + '\n')
-            if args.verbose:
-                print(colored(f"[i] Writing subdomain to file: {subdomain}", 'yellow'))
-
+    for subdomain, ip in subdomains:
+        print(f"{subdomain}\t{ip}")
     if args.verbose:
-        print(colored(f"[i] Finished! Discovered {len(subdomains)} subdomains", 'yellow'))
+        print(f"Found {len(subdomains)} subdomains.")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
