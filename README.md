@@ -17,41 +17,8 @@ To use WhiteF0x, simply run the whitef0x.py script and specify the domain you wa
 
 Here's an example usage of WhiteF0x:
 
-`python whitef0x.py example.com -w wordlists/common.txt,wordlists/custom.txt -r -v`
+`python whitef0x.py example.com -w subdomains.txt common.txt -r 2 -t 20 -p https -o results.txt --timeout 10`
 
-This will scan the example.com domain using the wordlists/common.txt and wordlists/custom.txt wordlist files, perform a recursive subdomain enumeration, and output verbose results. You can replace example.com with the domain you want to scan, and specify your own wordlist file(s) as needed.
-
-Options
-Here are the available command line options for WhiteF0x:
-
-`usage: whitef0x.py [-h] [-w WORDLISTS] [-r] [-v] domain`
-
-WhiteF0x Sub Domain Enumeration Tool
-
-positional arguments:
-  domain                Domain to scan
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -w WORDLISTS, --wordlists WORDLISTS
-                        Path to wordlist file(s) (separated by comma). Default is "wordlists/common.txt".
-  -r, --recursive       Recursive subdomain enumeration
-  -v, --verbose         Verbose output
-
-Examples
-Here are some example commands for using WhiteF0x:
-
-# Scan example.com using the default wordlist
-`python whitef0x.py example.com`
-
-# Scan example.com using a custom wordlist
-`python whitef0x.py example.com -w custom_wordlist.txt`
-
-# Perform a recursive scan of example.com using the default wordlist
-`python whitef0x.py example.com -r`
-
-# Output verbose results for example.com using the default wordlist
-`python whitef0x.py example.com -v`
 
 
 
