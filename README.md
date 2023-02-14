@@ -14,7 +14,7 @@ To use WhiteF0x, simply run the script with the desired options.
 
 For example:
 
-``python whitef0x.py example.com -w subdomains.txt common.txt -r 2 -t 20 -p https -o results.txt --timeout 10``
+``python whitef0x.py example.com -w wordlists/common.txt,wordlists/custom.txt -r -v ``
 
 This command would scan the domain 'example.com' using the wordlists 'subdomains.txt' and 'common.txt' for up to 2 levels of recursive subdomain enumeration, with 20 threads and the HTTPS protocol. The results of the scan would be saved to a file called 'results.txt', with a timeout of 10 seconds for each HTTP request.
 
