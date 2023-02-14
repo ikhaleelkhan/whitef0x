@@ -1,58 +1,77 @@
+#!/usr/bin/env python3
+
 import argparse
-import requests
 import dns.resolver
-from tqdm import tqdm
-from colorama import Fore, Style
+import os
+import sys
+import concurrent.futures
+from termcolor import colored
 
+BANNER = colored("""
+ __      __    _      _______          _       
+ \ \    / /   | |    |__   __|        | |      
+  \ \  / /   _| |_ ___  | | ___   ___ | |_ ___ 
+   \ \/ / | | | __/ _ \ | |/ _ \ / _ \| __/ __|
+    \  /| |_| | ||  __/ | | (_) | (_) | |_\__ \\
+     \/  \__,_|\__\___| |_|\___/ \___/ \__|___/
+""", 'cyan')
 
-def get_subdomains(domain, wordlist):
-    subdomains = []
-    with open(wordlist, 'r') as f:
-        for line in f:
-            subdomain = line.strip()
-            url = f'http://{subdomain}.{domain}'
-            try:
-                requests.get(url)
-            except requests.ConnectionError:
-                pass
-            else:
-                print(Fore.GREEN + f'[+] Found subdomain: {url}' + Style.RESET_ALL)
-                subdomains.append(url)
+def get_subdomains(domain, wordlists):
+    subdomains = set()
+    for wordlist in wordlists:
+        with open(wordlist, 'r') as f:
+            for line in f:
+                subdomain = line.strip()
+                if subdomain:
+                    hostname = f"{subdomain}.{domain}"
+                    subdomains.add(hostname)
     return subdomains
 
-
 def get_recursive_subdomains(domain, recursive, wordlists):
-    subdomains = []
+    subdomains = set()
     if not recursive:
-        return get_subdomains(domain, wordlists)
+        subdomains.update(get_subdomains(domain, wordlists))
     else:
-        subdomain_queue = list(get_subdomains(domain, wordlists))
-        for subdomain in tqdm(subdomain_queue):
-            try:
-                answers = dns.resolver.resolve(subdomain, 'A')
-            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-                pass
-            else:
-                for rdata in answers:
-                    ip = rdata.to_text()
-                    print(Fore.BLUE + f'[+] Found IP address: {ip}' + Style.RESET_ALL)
-                    new_subdomain = f'{ip}.in-addr.arpa'
-                    if new_subdomain not in subdomain_queue and new_subdomain not in subdomains:
-                        subdomain_queue.append(new_subdomain)
-                        subdomains.append(new_subdomain)
-        return subdomains
-
+        subdomains_to_check = {domain}
+        discovered_subdomains = set()
+        while subdomains_to_check:
+            subdomain = subdomains_to_check.pop()
+            if subdomain not in discovered_subdomains:
+                discovered_subdomains.add(subdomain)
+                try:
+                    answers = dns.resolver.resolve(subdomain, 'A')
+                    for rdata in answers:
+                        subdomains.add(subdomain)
+                        print(colored(f"[+] Discovered subdomain: {subdomain}", 'green'))
+                except:
+                    pass
+                subdomains_to_check.update(get_subdomains(subdomain, wordlists))
+    return subdomains
 
 def main():
-    parser = argparse.ArgumentParser(description='WhiteF0x Sub Domain Enumeration Tool')
-    parser.add_argument('domain', help='target domain to enumerate subdomains for')
-    parser.add_argument('-r', '--recursive', action='store_true', help='enable recursive subdomain enumeration')
-    parser.add_argument('-w', '--wordlist', default='common.txt', help='specify a custom wordlist file')
-    parser.add_argument('-v', '--verbose', action='store_true', help='enable verbose output')
-    parser.add_argument('-vv', '--extra-verbose', action='store_true', help='enable extra verbose output')
-    parser.add_argument('-o', '--output', help='specify an output file')
+    parser = argparse.ArgumentParser(description=BANNER)
+    parser.add_argument('domain', help='The domain to enumerate subdomains for')
+    parser.add_argument('-r', '--recursive', action='store_true', help='Recursively search for subdomains')
+    parser.add_argument('-w', '--wordlists', default='common.txt', help='Comma-separated list of wordlists to use')
+    parser.add_argument('-o', '--output', default='subdomains.txt', help='File to write output to')
+    parser.add_argument('-t', '--threads', default=10, type=int, help='Number of threads to use for subdomain lookup')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Show verbose output')
     args = parser.parse_args()
 
-    if args.extra_verbose:
-        print(Fore.YELLOW + '[+] Running in extra verbose mode' + Style.RESET_ALL)
-    elif args.verbose:
+    if args.verbose:
+        print(colored(f"[i] Starting WhiteF0x with options: {args}", 'yellow'))
+
+    wordlists = args.wordlists.split(',')
+    subdomains = get_recursive_subdomains(args.domain, args.recursive, wordlists)
+
+    with open(args.output, 'w') as f:
+        for subdomain in subdomains:
+            f.write(subdomain + '\n')
+            if args.verbose:
+                print(colored(f"[i] Writing subdomain to file: {subdomain}", 'yellow'))
+
+    if args.verbose:
+        print(colored(f"[i] Finished! Discovered {len(subdomains)} subdomains", 'yellow'))
+
+if __name__ == '__main__':
+    main()
